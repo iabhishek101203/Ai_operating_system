@@ -1,0 +1,30 @@
+from pathlib import Path
+
+from app.core.config import Settings
+
+
+class PathValidationError(ValueError):
+    """Raised when a user-provided path violates filesystem policy."""
+
+
+class PathValidator:
+    def __init__(self, settings: Settings):
+        self._settings = settings
+
+    def validate_directory(self, path: Path) -> Path:
+        resolved_path = path.expanduser().resolve()
+
+        if not resolved_path.exists():
+            raise PathValidationError(f"Path does not exist: {resolved_path}")
+
+        if not resolved_path.is_dir():
+            raise PathValidationError(f"Path is not a directory: {resolved_path}")
+
+        if not self._is_within_allowed_roots(resolved_path):
+            raise PathValidationError(f"Path is outside allowed roots: {resolved_path}")
+
+        return resolved_path
+
+    def _is_within_allowed_roots(self, path: Path) -> bool:
+        allowed_roots = [root.expanduser().resolve() for root in self._settings.allowed_roots]
+        return any(path == root or root in path.parents for root in allowed_roots)
