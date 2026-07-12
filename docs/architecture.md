@@ -57,4 +57,6 @@ storage/
 
 ## Initial Operation
 
-The first supported operation is `search_files` because it is read-only and low-risk. It is still useful for proving path validation, structured responses, preview flow, and test strategy.
+The first supported operation is `search_files` because it is read-only and low-risk. It is useful for proving path validation, structured responses, preview flow, and test strategy.
+
+The first mutating operation is `rename_file`. It adds a short-lived preview authorization that is bound to the exact structured intent and consumed once on execution. The resulting before/after effect summary and undo metadata are stored in SQLite. Undo is conflict-aware: it will not restore a previous name if that name is now occupied or the renamed file was modified after the original operation.

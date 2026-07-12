@@ -25,6 +25,21 @@ class PathValidator:
 
         return resolved_path
 
+    def validate_regular_file(self, path: Path) -> Path:
+        """Validate a file without following a user-supplied symlink."""
+        expanded_path = path.expanduser()
+        if expanded_path.is_symlink():
+            raise PathValidationError(f"Symbolic links are not supported: {expanded_path}")
+
+        resolved_path = expanded_path.resolve()
+        if not resolved_path.exists():
+            raise PathValidationError(f"Path does not exist: {resolved_path}")
+        if not resolved_path.is_file():
+            raise PathValidationError(f"Path is not a regular file: {resolved_path}")
+        if not self._is_within_allowed_roots(resolved_path):
+            raise PathValidationError(f"Path is outside allowed roots: {resolved_path}")
+        return resolved_path
+
     def _is_within_allowed_roots(self, path: Path) -> bool:
         allowed_roots = [root.expanduser().resolve() for root in self._settings.allowed_roots]
         return any(path == root or root in path.parents for root in allowed_roots)

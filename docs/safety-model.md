@@ -37,4 +37,6 @@ external       Network, browser, package managers, project generators.
 
 ## Early Policy
 
-Milestone 1 allows only read-only filesystem search. Mutating operations will be added after the validation, preview, logging, and undo contracts are stable.
+Milestone 1 allows read-only filesystem search and one reversible mutation: file rename. A rename requires a preview-issued, one-time confirmation token. The preview lists the exact before/after paths as an effect summary. The operation journal stores the original path, resulting path, and content fingerprint. Undo is refused if the original path has become occupied or the renamed file has changed, preventing a silent overwrite of later work.
+
+This follows NaSh's Develop -> Run -> Inspect -> Revert lifecycle in a practical application-level form. The project does not claim to implement NaSh's filesystem-level inverse overlay; that would require OS-specific sandboxing beyond this current backend.

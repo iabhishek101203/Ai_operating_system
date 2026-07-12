@@ -27,6 +27,37 @@ docs/      Architecture, safety model, and research notes
 frontend/  Future React + TypeScript interface
 ```
 
+The current MVP includes a dependency-free browser interface served by FastAPI at `/`. It supports safe file search, rename preview and confirmation, operation history, and preview-confirmed undo. A React/Tauri client can replace this interface later without changing the safety API.
+
 ## Current Milestone
 
-Milestone 1 builds the backend safety foundation with one low-risk operation: safe file search. This proves the validation, preview, execution, and logging flow before adding Gemini or a full UI.
+Milestone 1 builds the backend safety foundation with safe file search and a NaSh-inspired reversible rename workflow. Rename previews produce an explicit effect summary and a one-time confirmation token. Successful operations are recorded in SQLite with enough metadata to restore the original name, while undo rejects conflicts such as a later file modification.
+
+## NaSh-aligned Lifecycle
+
+The first mutating workflow implements the guardrail loop proposed by NaSh:
+
+```text
+Develop (structured intent)
+-> Run (approved Python tool)
+-> Inspect (effect summary and result)
+-> Revert (conflict-aware undo)
+```
+
+This is deliberately limited to an allowlisted file rename. It is a research foundation for later move, trash, and multi-step workflow operations; it is not an arbitrary-command shell.
+
+## Run the MVP
+
+From the `backend` directory on Windows:
+
+```powershell
+.\.venv\Scripts\python.exe -m uvicorn app.main:app --reload
+```
+
+Open `http://127.0.0.1:8000` in a browser. The API documentation is available at `http://127.0.0.1:8000/docs`.
+
+For safety, choose a directory permitted by `AIOS_ALLOWED_ROOTS`. During development the default is the backend working directory. Configure a JSON list in `backend/.env`, for example:
+
+```text
+AIOS_ALLOWED_ROOTS=["C:\\Users\\Dell\\Documents"]
+```

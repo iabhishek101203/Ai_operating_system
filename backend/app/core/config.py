@@ -16,6 +16,8 @@ class Settings(BaseSettings):
 
     allowed_roots: list[Path] = Field(default_factory=lambda: [Path.cwd()])
     max_search_results: int = 100
+    operation_db_path: Path = Field(default_factory=lambda: Path.cwd() / ".aios" / "operations.sqlite3")
+    preview_token_ttl_seconds: int = 600
 
 
 @lru_cache
