@@ -70,6 +70,14 @@ def test_browser_interface_and_api_routes_are_packaged() -> None:
     assert frontend.exists()
     assert "AI Operating System Assistant" in frontend.read_text(encoding="utf-8")
 
-    route_paths = {route.path for route in app.routes if hasattr(route, "path")}
+    route_paths = set()
+    for route in app.routes:
+        if hasattr(route, "path"):
+            route_paths.add(route.path)
+        elif hasattr(route, "effective_candidates"):
+            for candidate in route.effective_candidates():
+                if hasattr(candidate, "path"):
+                    route_paths.add(candidate.path)
     assert "/api/operations/history" in route_paths
     assert "/api/operations/rename/{operation_id}/undo/preview" in route_paths
+

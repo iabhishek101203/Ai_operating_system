@@ -37,3 +37,25 @@ def test_validate_directory_rejects_file(tmp_path: Path) -> None:
 
     with pytest.raises(PathValidationError):
         validator.validate_directory(file_path)
+
+
+def test_validate_new_path_allows_non_existent_path_inside_allowed_root(tmp_path: Path) -> None:
+    allowed = tmp_path / "allowed"
+    allowed.mkdir()
+    non_existent = allowed / "new_dir" / "new_file.txt"
+
+    validator = PathValidator(Settings(allowed_roots=[allowed]))
+    assert validator.validate_new_path(non_existent) == non_existent.resolve()
+
+
+def test_validate_new_path_rejects_path_outside_allowed_root(tmp_path: Path) -> None:
+    allowed = tmp_path / "allowed"
+    outside = tmp_path / "outside"
+    allowed.mkdir()
+    outside.mkdir()
+    non_existent = outside / "new_file.txt"
+
+    validator = PathValidator(Settings(allowed_roots=[allowed]))
+    with pytest.raises(PathValidationError):
+        validator.validate_new_path(non_existent)
+

@@ -40,6 +40,23 @@ class PathValidator:
             raise PathValidationError(f"Path is outside allowed roots: {resolved_path}")
         return resolved_path
 
+    def validate_new_path(self, path: Path) -> Path:
+        """Validate a path that does not exist yet (e.g. target of rename/move or new project)."""
+        expanded_path = path.expanduser()
+        # Find closest existing ancestor to check for symlinks
+        ancestor = expanded_path
+        while not ancestor.exists() and ancestor != ancestor.parent:
+            ancestor = ancestor.parent
+
+        if ancestor.is_symlink():
+            raise PathValidationError(f"Symbolic links are not supported: {ancestor}")
+
+        resolved_path = expanded_path.resolve()
+        if not self._is_within_allowed_roots(resolved_path):
+            raise PathValidationError(f"Path is outside allowed roots: {resolved_path}")
+        return resolved_path
+
     def _is_within_allowed_roots(self, path: Path) -> bool:
         allowed_roots = [root.expanduser().resolve() for root in self._settings.allowed_roots]
         return any(path == root or root in path.parents for root in allowed_roots)
+

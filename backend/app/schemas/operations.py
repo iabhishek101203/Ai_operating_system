@@ -5,9 +5,27 @@ from uuid import UUID
 from pydantic import BaseModel, Field
 
 
-OperationName = Literal["search_files", "rename_file", "undo_rename_file"]
+OperationName = Literal[
+    "search_files",
+    "rename_file",
+    "undo_rename_file",
+    "move_file",
+    "undo_move_file",
+    "delete_file",
+    "undo_delete_file",
+    "organize_folder",
+    "undo_organize_folder",
+    "find_duplicates",
+    "create_project",
+    "undo_create_project",
+    "initialize_git",
+    "install_dependencies",
+    "create_readme",
+    "undo_create_readme"
+]
 OperationRisk = Literal["read_only", "reversible", "destructive", "external"]
 OperationStatus = Literal["preview", "success", "failed"]
+
 
 
 class OperationPreview(BaseModel):
