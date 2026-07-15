@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AI Operating System Assistant</title>
+  <style>
+    :root { color-scheme: dark; --bg:#101827; --panel:#1c2738; --line:#33445f; --accent:#66e3ba; --text:#e8eef9; --muted:#a9b8d0; --warn:#f7c66b; --danger:#ff8d99; }
+    * { box-sizing:border-box; } body { margin:0; font-family:Inter,system-ui,sans-serif; background:linear-gradient(135deg,#101827,#17243a); color:var(--text); min-height:100vh; }
+    main { max-width:1000px; padding:36px 20px 60px; margin:auto; } h1 { margin:0; font-size:clamp(1.8rem,4vw,2.7rem); } .subtitle { color:var(--muted); max-width:720px; line-height:1.55; }
+    .notice { border:1px solid #2d745f; background:#16362f; padding:13px 15px; border-radius:10px; color:#c7f7e5; margin:24px 0; }
+    .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(290px,1fr)); gap:18px; } .card { background:rgba(28,39,56,.96); border:1px solid var(--line); border-radius:14px; padding:20px; box-shadow:0 10px 28px #0003; }
+    h2 { margin:0 0 14px; font-size:1.17rem; } label { display:block; color:var(--muted); font-size:.9rem; margin:12px 0 5px; } input { width:100%; border:1px solid var(--line); background:#101827; color:var(--text); padding:10px; border-radius:8px; font:inherit; }
+    button { margin-top:16px; border:0; background:var(--accent); color:#09251f; border-radius:8px; padding:10px 14px; font-weight:700; cursor:pointer; } button.secondary { background:#293952; color:var(--text); } button.danger { background:#6a2937; color:#ffe4e8; margin:0; padding:7px 10px; } button:disabled { opacity:.5; cursor:not-allowed; }
+    #result, #history { margin-top:18px; } pre { white-space:pre-wrap; overflow-wrap:anywhere; padding:13px; background:#0d1522; border:1px solid var(--line); border-radius:8px; color:#d8e8ff; } .hidden { display:none; }
+    .effect { border-left:3px solid var(--warn); padding:10px 12px; margin-top:12px; background:#2a2630; border-radius:4px; line-height:1.5; } .history-row { display:flex; align-items:center; gap:12px; justify-content:space-between; padding:12px 0; border-bottom:1px solid var(--line); } .history-row:last-child { border:0; } .history-row small { display:block; color:var(--muted); margin-top:4px; }
+    .error { color:#ffd5db; border-color:#8a3947; background:#3d1d26; } .success { color:#c7f7e5; border-color:#2d745f; background:#16362f; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>AI Operating System Assistant</h1>
+    <p class="subtitle">A safety-first natural-language operating-system assistant. This MVP only runs allowlisted Python tools; it never runs an LLM-generated shell command.</p>
+    <div class="notice">NaSh lifecycle: develop a structured request, inspect its effects, explicitly confirm it, then undo safely if needed.</div>
+    <div class="grid">
+      <section class="card">
+        <h2>Search files</h2>
+        <label for="search-root">Allowed directory</label><input id="search-root" placeholder="C:\\Users\\...\\Documents">
+        <label for="search-query">Filename contains</label><input id="search-query" placeholder="report">
+        <button id="search-button">Search safely</button>
+      </section>
+      <section class="card">
+        <h2>Rename a file</h2>
+        <label for="rename-source">Existing file</label><input id="rename-source" placeholder="C:\\Users\\...\\draft.txt">
+        <label for="rename-name">New filename only</label><input id="rename-name" placeholder="final-report.txt">
+        <button id="preview-button">Preview rename</button>
+        <div id="preview" class="hidden"></div>
+      </section>
+    </div>
+    <section class="card" id="result"><h2>Result</h2><p class="subtitle">Run a safe search or preview a rename to begin.</p></section>
+    <section class="card" id="history"><h2>Operation history</h2><button id="refresh-history" class="secondary">Refresh history</button><div id="history-list"></div></section>
+  </main>
+  <script>
+    const $ = (id) => document.getElementById(id);
+    let renameRequest = null;
+    const setResult = (title, data, isError=false) => {
+      $('result').innerHTML = `<h2>${title}</h2><pre class="${isError ? 'error' : 'success'}">${typeof data === 'string' ? data : JSON.stringify(data, null, 2)}</pre>`;
+    };
+    async function request(url, options={}) {
+      const response = await fetch(url, {headers:{'Content-Type':'application/json'}, ...options});
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(body.detail || `Request failed (${response.status})`);
+      return body;
+    }
+    $('search-button').onclick = async () => {
+      try {
+        const intent = {root_path:$('search-root').value, query:$('search-query').value, include_hidden:false};
+        const result = await request('/api/operations/search/execute', {method:'POST', body:JSON.stringify(intent)});
+        setResult(result.summary, result.data); loadHistory();
+      } catch (error) { setResult('Search blocked', error.message, true); }
+    };
+    $('preview-button').onclick = async () => {
+      try {
+        const intent = {source_path:$('rename-source').value, new_name:$('rename-name').value};
+        const preview = await request('/api/operations/rename/preview', {method:'POST', body:JSON.stringify(intent)});
+        renameRequest = {intent, confirmation_token:preview.confirmation_token};
+        $('preview').className = 'effect';
+        $('preview').innerHTML = `<strong>Preview required before execution</strong><br>${preview.details.effects[0].before}<br>→ ${preview.details.effects[0].after}<br><button id="confirm-button">Confirm and rename</button>`;
+      } catch (error) { setResult('Rename preview blocked', error.message, true); }
+    };
+    document.addEventListener('click', async (event) => {
+      if (event.target.id !== 'confirm-button') return;
+      try {
+        const result = await request('/api/operations/rename/execute', {method:'POST', body:JSON.stringify(renameRequest)});
+        $('preview').className = 'hidden'; renameRequest = null; setResult(result.summary, result); loadHistory();
+      } catch (error) { setResult('Rename blocked', error.message, true); }
+    });
+    async function loadHistory() {
+      try {
+        const operations = await request('/api/operations/history');
+        $('history-list').innerHTML = operations.length ? operations.map(op => `<div class="history-row"><div><strong>${op.summary}</strong><small>${new Date(op.finished_at).toLocaleString()} · ${op.operation}</small></div>${op.undo_supported ? `<button class="danger" data-undo="${op.operation_id}">Undo</button>` : ''}</div>`).join('') : '<p class="subtitle">No operations yet.</p>';
+      } catch (error) { $('history-list').textContent = error.message; }
+    }
+    $('refresh-history').onclick = loadHistory;
+    document.addEventListener('click', async (event) => {
+      const operationId = event.target.dataset.undo; if (!operationId) return;
+      try {
+        const preview = await request(`/api/operations/rename/${operationId}/undo/preview`, {method:'POST'});
+        if (!confirm(`${preview.summary}\n\nUndo will be blocked if a conflict is detected.`)) return;
+        const result = await request('/api/operations/rename/undo/execute', {method:'POST', body:JSON.stringify({operation_id:operationId, confirmation_token:preview.confirmation_token})});
+        setResult(result.summary, result); loadHistory();
+      }
+      catch (error) { setResult('Undo blocked', error.message, true); }
+    });
+    loadHistory();
+  </script>
+</body>
+</html>
