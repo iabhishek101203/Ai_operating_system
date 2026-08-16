@@ -185,7 +185,7 @@ function App() {
 
       {/* Main Layout */}
       <main className="flex-1 max-w-[1600px] w-full mx-auto p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
-        
+
         {/* Column 1: Workspace File Explorer */}
         <section className="lg:col-span-3 flex flex-col h-[calc(100vh-120px)]">
           <div className="glass-panel rounded-2xl p-5 flex-1 flex flex-col overflow-hidden shadow-2xl">
@@ -216,6 +216,7 @@ function App() {
             </div>
           </div>
         </section>
+
 
         {/* Column 2: Planner (Chat & execution timeline) */}
         <section className="lg:col-span-5 flex flex-col space-y-6 h-[calc(100vh-120px)] overflow-y-auto pr-1">
