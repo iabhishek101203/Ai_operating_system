@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Literal,Optional
 from uuid import UUID
 
 from pydantic import BaseModel, Field, field_validator
@@ -136,9 +136,9 @@ class ExecutionPlan(BaseModel):
     steps: list[ToolCall] = Field(description="Sequential list of actions.")
 
 
+
 class ConfirmedPlanExecutionRequest(BaseModel):
-    """A confirmed list of tool calls to execute, authenticated by a one-time token."""
+    """Execute a workflow. Read-only workflows do not require a confirmation token."""
 
     steps: list[ToolCall]
-    confirmation_token: str = Field(min_length=16, max_length=512)
-
+    confirmation_token: Optional[str] = None

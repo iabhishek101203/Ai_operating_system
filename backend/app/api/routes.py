@@ -17,6 +17,7 @@ from app.schemas.operations import OperationPreview, OperationResult
 from app.services.ai_service import AIService
 from app.services.operation_service import OperationService
 from app.tools.workspace import WorkspaceExplorerTool
+from typing import Literal
 
 router = APIRouter()
 settings = get_settings()
@@ -27,6 +28,7 @@ workspace_explorer = WorkspaceExplorerTool(path_validator=operation_service._pat
 
 class ChatPlanRequest(BaseModel):
     message: str
+    planner: Literal["auto", "gemini", "rule"] = "auto"
 
 
 class SettingsUpdateRequest(BaseModel):
@@ -82,11 +84,12 @@ def chat_plan(request: ChatPlanRequest, x_gemini_api_key: Optional[str] = Header
     # Use header key first, then fall back to .env key
     api_key = x_gemini_api_key or getattr(settings, "gemini_api_key", None)
     plan = ai_service.generate_plan(
-        user_query=request.message,
-        allowed_roots=allowed_roots_str,
-        current_workspace=str(Path.cwd()),
-        api_key=api_key,
-    )
+    user_query=request.message,
+    allowed_roots=allowed_roots_str,
+    current_workspace=str(Path.cwd()),
+    api_key=api_key,
+    planner=request.planner,
+)
 
     previews = operation_service.preview_plan(plan.steps)
 

@@ -445,27 +445,74 @@ class OperationService:
 
         return previews
 
-    def execute_plan(self, steps: list[ToolCall], confirmation_token: str) -> list[OperationResult]:
-        try:
-            self._preview_store.consume(
-                confirmation_token, {"steps": [step.model_dump(mode="json") for step in steps]}
-            )
-        except PreviewAuthorizationError as exc:
-            raise HTTPException(status_code=400, detail=str(exc)) from exc
+    def execute_plan(
+        self,
+        steps: list[ToolCall],
+        confirmation_token: str | None = None,
+    ) -> list[OperationResult]:
+        """
+        Execute a workflow. Read-only workflows (e.g. search_files,
+        find_duplicates) do not require a confirmation token.
+        """
 
-        results = []
+        needs_confirmation = any(
+            step.tool in {
+                "rename_file",
+                "move_file",
+                "delete_file",
+                "organize_folder",
+                "create_project",
+                "initialize_git",
+                "install_dependencies",
+                "create_readme",
+            }
+            for step in steps
+        )
+
+        if needs_confirmation:
+            if not confirmation_token:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Confirmation token required for this workflow.",
+                )
+
+            try:
+                self._preview_store.consume(
+                    confirmation_token,
+                    {
+                        "steps": [
+                            step.model_dump(mode="json")
+                            for step in steps
+                        ]
+                    },
+                )
+            except PreviewAuthorizationError as exc:
+                raise HTTPException(
+                    status_code=400,
+                    detail=str(exc),
+                ) from exc
+
+        results: list[OperationResult] = []
+
         for step in steps:
             try:
-                res = self.execute_tool_call(step.tool, step.parameters)
-                results.append(res)
-            except Exception as e:
-                # Execution stops immediately upon failure.
-                # Package and raise the failure alongside what succeeded
-                succeeded_summary = [r.summary for r in results]
-                err_msg = f"Step '{step.tool}' failed: {str(e)}."
-                if succeeded_summary:
-                    err_msg += f" Succeeded previous steps: {', '.join(succeeded_summary)}."
-                raise HTTPException(status_code=500, detail=err_msg) from e
+                result = self.execute_tool_call(
+                    step.tool,
+                    step.parameters,
+                )
+                results.append(result)
+            except Exception as exc:
+                succeeded = [r.summary for r in results]
+                message = f"Step '{step.tool}' failed: {exc}"
+                if succeeded:
+                    message += (
+                        ". Previous successful steps: "
+                        + ", ".join(succeeded)
+                    )
+                raise HTTPException(
+                    status_code=500,
+                    detail=message,
+                ) from exc
 
         return results
 

@@ -149,13 +149,17 @@ export const useStore = create<AppState>((set, get) => ({
       const res = await fetch(`${API_BASE}/chat/plan`, {
         method: "POST",
         headers,
-        body: JSON.stringify({ message }),
+        body: JSON.stringify({
+          message,
+          planner: "auto",
+        }),
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
         throw new Error(body.detail || `Planning failed with status ${res.status}`);
       }
       const data = await res.json();
+      console.log("PLAN RESPONSE:", data);
       set({ plan: data, loading: false });
     } catch (err: any) {
       set({ error: err.message, loading: false });
